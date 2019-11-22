@@ -3,6 +3,7 @@
 	"displayName": "HelloWorld",
 	"description": "hello world",
 	"version": "0.0.1",
+	"publisher": "vscode-sample",
 	"engines": {
 		"vscode": "^1.40.0"
 	},
