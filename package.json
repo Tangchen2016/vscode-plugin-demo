@@ -11,7 +11,8 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:extension.helloWorld"
+		"onCommand:extension.helloWorld",
+		"onLanguage:javascript"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
@@ -20,7 +21,22 @@
 				"command": "extension.helloWorld",
 				"title": "Hello World"
 			}
-		]
+		],
+		"configuration": {
+			"type": "object",
+			"title": "跳转插件",
+			"properties": {
+				"vscodePluginAlias.basePath": {
+						"type": "string",
+						"default": "/Users/tangchen/workspace/code/gitRepo/report-web",
+						"description": "相对路径"
+				},
+				"vscodePluginAlias.config": {
+					"type": "object",
+					"markdownDescription": "alias规则配置地址（相对项目路径）\n\rExample: \n\r```\r\"vscodePluginAlias.path\": {\r\t\"@\": \"src\"\r}\r```"
+				}
+			}
+		}
 	},
 	"scripts": {
 		"vscode:prepublish": "yarn run compile",

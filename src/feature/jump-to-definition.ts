@@ -7,6 +7,9 @@ import * as path from "path";
 import * as fs from "fs";
 import * as util from "../util";
 
+const aliasBasePath: string = vscode.workspace.getConfiguration().get('vscodePluginAlias.basePath') || '';
+const aliasPathConfig: { [key: string]: string } = vscode.workspace.getConfiguration().get('vscodePluginAlias.path') || {};
+
 function provideDefinition(
   document: vscode.TextDocument,
   position: vscode.Position,
@@ -26,49 +29,57 @@ function provideDefinition(
   console.log("word: " + word); // 当前光标所在单词
   console.log("line: " + line.text); // 当前光标所在行
   console.log("projectPath: " + projectPath); // 当前工程目录
+  console.log("========================================");
 
-  if (/\/package\.json$/.test(fileName)) {
-    console.log(word, line.text);
-    const json = document.getText();
-    // 这里我们偷懒只做一个简单的正则匹配
-    if (
-      new RegExp(
-        `"(dependencies|devDependencies)":\\s*?\\{[\\s\\S]*?${word.replace(
-          /\//g,
-          "\\/"
-        )}[\\s\\S]*?\\}`,
-        "gm"
-      ).test(json)
-    ) {
-      let destPath = `${workDir}/node_modules/${word.replace(
-        /"/g,
-        ""
-      )}/README.md`;
-      if (fs.existsSync(destPath)) {
-        // new vscode.Position(0, 0) 表示跳转到某个文件的第一行第一列
-        return new vscode.Location(
-          vscode.Uri.file(destPath),
-          new vscode.Position(0, 0)
-        );
-      }
-    }
+  const aliasWordList = (line.text.match(/['|"](.*?)\/(.*)['|"]/) || []);
+  const aliasPath = getAliasPath(aliasWordList[1]);
+  let destPath = '';
+  if (aliasPath) {
+    destPath = path.join(aliasBasePath, aliasPath, aliasWordList[2]);
+  } else {
+    destPath = path.join(workDir, 'node_modules', aliasWordList[1], aliasWordList[2]);
+  }
+
+  if (!path.extname(destPath)) {
+    destPath += '.js'
+  }
+  if (fs.existsSync(destPath)) {
+    // const position = util.findStrInFile(destPath, word) || [];
+    return new vscode.Location(
+      vscode.Uri.file(destPath),
+      new vscode.Position(0, 0)
+      // new vscode.Position(position.row, position.col)
+    );
   }
 }
 
-const disposable = vscode.commands.registerCommand(
-  "extension.helloWorld",
-  () => {
-    // The code you place here will be executed every time your command is executed
-    vscode.window.showInformationMessage("Hello world");
-    // Display a message box to the user
-  }
-);
+function provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): vscode.ProviderResult<vscode.Hover> {
+  const fileName = document.fileName;
+  const workDir = path.dirname(fileName);
+  const word = document.getText(document.getWordRangeAtPosition(position));
+  const line = document.lineAt(position);
+
+  console.log('进入provideHover方法');
+  const aliasWordList = (line.text.match(/['|"](.*?)\/(.*)['|"]/) || []);
+  const aliasPath = getAliasPath(aliasWordList[1]);
+  if (aliasPath) {
+    const destPath = path.join(aliasBasePath, aliasPath, aliasWordList[2]);
+    return new vscode.Hover(`**module** \`"${destPath}"\``);
+  } 
+}
 
 export default (context: vscode.ExtensionContext): void => {
   // 注册如何实现跳转到定义，第一个参数表示仅对json文件生效
   context.subscriptions.push(
-    vscode.languages.registerDefinitionProvider(["js"], {
+    vscode.languages.registerDefinitionProvider(['javascript', 'vue', 'json'], {
       provideDefinition
     })
   );
+  context.subscriptions.push(vscode.languages.registerHoverProvider(['javascript', 'vue', 'json'], {
+    provideHover
+  }));
 };
+
+function getAliasPath(aliasKey: string): string {
+  return aliasPathConfig[aliasKey] || '';
+}
